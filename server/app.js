@@ -107,7 +107,7 @@ app.get('/api/conversation/:userID', async(req,res) => {
         const conversationUserData = Promise.all(conversations.map(async (conversation) => {
             const receiverID = conversation.members.find((member) => member!= userID);
             const user = await Users.findById(receiverID);
-            return { user: {email: user.email, fullName: user.fullName}, conversationID: conversation._id}
+            return { user: {receiverID: user._id, email: user.email, fullName: user.fullName}, conversationID: conversation._id}
         }))
         res.status(200).json(await conversationUserData);
     }
@@ -146,7 +146,7 @@ app.get('/api/message/:conversationID', async(req,res) => {
         const messages = await Messages.find( {conversationID } );
         const messageUserData = Promise.all(messages.map(async(message)=>{
             const user = await Users.findById(message.senderID);
-            return { user: {email:user.email, fullName: user.fullName }, message: message.message }
+            return { user: {id: user._id, email: user.email, fullName: user.fullName }, message: message.message }
         }));
         res.status(200).json(await messageUserData);
     }
