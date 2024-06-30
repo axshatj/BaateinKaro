@@ -16,6 +16,7 @@ const Form = ({
   const handleSubmit = async(e) => {
     e.preventDefault();   
     // alert("hi")
+    console.log(data)
     const res = await fetch(`http://localhost:8000/api/${ isSignInPage ? 'login' : 'register' }`, {
       method: 'POST',
       headers: {
@@ -28,6 +29,7 @@ const Form = ({
       alert("invalid credentials")
     }
     else{
+      console.log(res);
       const resData = await res.json(); 
       if(resData.token){
         localStorage.setItem('user:token', resData.token);

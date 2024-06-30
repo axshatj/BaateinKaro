@@ -4,17 +4,38 @@ import Phone from '../../assets/phone-call.svg'
 import Input from '../../components/input'
 import Send from '../../assets/send.svg'
 import Plus from '../../assets/plus-circle.svg'
+import { io } from 'socket.io-client'
+
+
 const Dashboard = () => {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user:detail')))
     const [conversations, setConversations] = useState([])
     const [messages, setMessages] = useState({})
     const [message, setMessage] = useState("")
     const [users, setUsers] = useState([])
+    const [socket, setSocket] = useState(null)
     // console.log("conversations >>", conversations);
     // console.log("messages >>", messages);
     useEffect(() => {
+        setSocket(io('http://localhost:8080'))
+    },[])
+    
+    useEffect(() => {
+        socket?.emit('addUser',user?.id);
+        socket?.on('getUsers',users => {
+            console.log("active user >>", users);
+        })
+        socket?.on('getMessage', data => {   
+            // console.log("data >>", data)
+            setMessages(prev => ({
+                ...prev,
+                messages: [...prev.messages, { user: data.user, message: data.message }]
+            }))
+        })
+    },[socket])
+
+    useEffect(() => {
         const loggedInUser = JSON.parse(localStorage.getItem('user:detail'));
-        // console.log("userid", loggedInUser.id);
         const fetchConversations = async () => {
             const res = await fetch(`http://localhost:8000/api/conversation/${loggedInUser?.id}`, {
                 method: 'GET',
@@ -54,6 +75,12 @@ const Dashboard = () => {
         setMessages({ messages: resData, receiver, conversationID: conversationID })
     }
     const sendMessage = async (e) => {
+        socket.emit('sendMessage',{
+            senderID: user.id,
+            receiverID: messages?.receiver?.receiverID,
+            conversationID: messages?.conversationID,
+            message
+        });
         const res = await fetch(`http://localhost:8000/api/message/`, {
             method: 'POST',
             headers: {
@@ -122,7 +149,7 @@ const Dashboard = () => {
                 }
                 <div className='h-[75%] border w-full overflow-scroll border-b'>
                     <div className='p-14'>
-                        {console.log("DEBUG >>" , messages)}
+                        {/* {console.log("DEBUG >>" , messages)} */}
                         {
                             messages.messages && (messages.messages).length > 0 ? (
                                 messages.messages.map(({ message, user: { id } = {} }) => (

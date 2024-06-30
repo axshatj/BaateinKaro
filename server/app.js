@@ -3,6 +3,12 @@ const bcryptjs = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const cors = require('cors')
 const app = express();
+const io = require('socket.io')(8080,{
+    cors: {
+      origin: "http://localhost:3000",
+    //   methods: ["GET", "POST"]
+    }
+  });
 
 require('./db/connection')
 const Users = require('./modules/Users')
@@ -16,6 +22,36 @@ app.use(express.json());
 app.use(express.urlencoded({ extended:false }));
 app.use(cors());
 
+let users = [];
+io.on('connection',socket => {
+    // console.log("User connection established", socket.id)
+    socket.on('addUser', userID => {
+        const  isUserExist = users.find(user => user.userID === userID); 
+        if(!(isUserExist)){
+            const user = { userID, socketID: socket.id };
+            users.push(user);
+            io.emit('getUsers',users);
+        }
+    })
+    socket.on('sendMessage',async ({senderID, message, receiverID, conversationID}) =>{
+        const receiver = users.find(user => user.userID === receiverID);
+        const sender = users.find(user => user.userID === senderID);
+        const user = await Users.findById(senderID);
+        if(receiver){
+            io.to(receiver.socketID).to(sender.socketID).emit('getMessage',{
+                senderID,
+                message,
+                receiverID,
+                conversationID,
+                user: { id: user._id, fullName: user.fullName, email: user.email}
+            })
+        }
+    })
+    socket.on('disconnect', () => {
+        users = users.filter(user => user.socketID !== socket.id);
+        io.emit('getUsers',users);
+    })
+})
 app.get('/', (req,res) => {
     res.send('welcome');
 })
@@ -29,13 +65,13 @@ app.post('/api/register', async (req, res, next) => {
         const { fullName, email, password } = req.body;
         if (fullName && email && password) {
             const isAlreadyExist = await Users.findOne({ email });
+            console.log("aleary",isAlreadyExist)
             if (isAlreadyExist) {
                 return res.status(400).send('User already exists'); 
             } else {
                 const hashedPassword = await bcryptjs.hash(password, 10);
                 const newUser = new Users({ fullName, email, password: hashedPassword });
                 await newUser.save();
-                // console.log(newUser);
                 return res.status(200).send('User registered successfully');
             }
         } else {
